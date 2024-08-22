@@ -31,6 +31,8 @@
             "includePath": [
                 "/tmp/arduino/sketches/D8D3C583545BE0863538DDFC782BAC17/pch",
                 "/home/riplab/.arduino15/packages/teensy/hardware/avr/1.57.3/cores/teensy4",
+                "/home/riplab/Arduino/libraries/ODriveArduino/src",
+                "/home/riplab/Arduino/libraries/FlexCAN_T4",
                 "/home/riplab/Arduino/libraries/micro_ros_arduino-2.0.7-iron/src",
                 "/home/riplab/.arduino15/packages/teensy/hardware/avr/1.57.3/libraries/NativeEthernet/src",
                 "/home/riplab/.arduino15/packages/teensy/hardware/avr/1.57.3/libraries/FNET/src",

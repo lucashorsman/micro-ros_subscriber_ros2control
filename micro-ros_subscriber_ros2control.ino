@@ -81,8 +81,8 @@ static micro_ros_utilities_memory_conf_t conf = {0};
 
 #define LED_PIN 13
 
-#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
-#define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
+#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
+#define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
 
 
 
@@ -162,36 +162,26 @@ void error_loop(){
 //twist message cb
 void subscription_callback(const void *msgin) {
   const sensor_msgs__msg__JointState * msg = (const sensor_msgs__msg__JointState *)msgin;
- digitalWrite(LED_PIN, (msg->velocity.data[0] < 0 ) ? LOW : HIGH);
-   odrv0.setVelocity(
-    msg->velocity.data[0]
-  );
-
+  float vel = msg->velocity.data[0];
   
+digitalWrite(LED_PIN, (vel < 0 ) ? LOW : HIGH);
+Serial.println(vel);
+   odrv0.setVelocity(
+    vel
+  ); 
 }
 
 void setup() {
 
-Serial.begin(115200);
-
-  // Wait for up to 3 seconds for the serial port to be opened on the PC side.
-
-  // If no PC connects, continue anyway.
-
-  for (int i = 0; i < 30 && !Serial; ++i) {
-
-    delay(100);
-
-  }
 
   delay(200);
 
-
+  Serial.begin(115200);
 
   Serial.println("Starting ODriveCAN demo");
 
 
-  // Register callbacks for the heartbeat and encoder feedback messages
+  // Regiter callbacks for the heartbeat and encoder feedback messages
 
   odrv0.onFeedback(onFeedback, &odrv0_user_data);
 
@@ -213,6 +203,14 @@ Serial.begin(115200);
 
   Serial.println("Waiting for ODrive...");
 
+  while (!odrv0_user_data.received_heartbeat) {
+
+    pumpEvents(can_intf);
+
+    delay(100);
+
+  }
+
 
 
   Serial.println("found ODrive");
@@ -224,13 +222,13 @@ Serial.begin(115200);
 
   Get_Bus_Voltage_Current_msg_t vbus;
 
-//  if (!odrv0.request(vbus, 1)) {
-//
-//    Serial.println("vbus request failed!");
-//
-//    while (true); // spin indefinitely
-//
-//  }
+  if (!odrv0.request(vbus, 1)) {
+
+    Serial.println("vbus request failed!");
+
+    while (true); // spin indefinitely
+
+  }
 
 
   Serial.print("DC voltage [V]: ");
@@ -244,20 +242,20 @@ Serial.begin(115200);
 
   Serial.println("Enabling closed loop control...");
 
-  while (odrv0_user_data.last_heartbeat.Axis_State != ODriveAxisState::AXIS_STATE_LOCKIN_SPIN) {
+  while (odrv0_user_data.last_heartbeat.Axis_State != ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
 
     odrv0.clearErrors();
 
     delay(1);
 
-    odrv0.setState(ODriveAxisState::AXIS_STATE_LOCKIN_SPIN);
-
+    odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
+odrv0.setControllerMode(2,2);
 
     // Pump events for 150ms. This delay is needed for two reasons;
 
     // 1. If there is an error condition, such as missing DC power, the ODrive might
 
-    //    briefly attempt to enter CLOSED_LOOP_CONTROL state, so we can't rely
+    //    briefly attempt to enter CLOSED_LOOP_state, so we can't rely
 
     //    on the first heartbeat response, so we want to receive at least two
 
@@ -286,7 +284,7 @@ Serial.println(i);
 
 
 
-
+odrv0.setVelocity(0);
 
   
   set_microros_transports();
@@ -328,15 +326,14 @@ bool success = micro_ros_utilities_create_message_memory(
   conf
 );
   // create executor
-  RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
   RCCHECK(rclc_executor_add_subscription(&executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
 
 }
 
 void loop() {
-  delay(100);
-  pumpEvents(can_intf); // This is required on some platforms to handle incoming feedback CAN messages
+delay(100);
+RCCHECK(rclc_executor_spin(&executor));
 
-
-  RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
+  
 }
